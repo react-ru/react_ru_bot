@@ -80,3 +80,5 @@ typings/
 .dynamodb/
 
 mongodb_data/
+deploy.sh
+cloud.env
