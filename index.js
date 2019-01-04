@@ -33,10 +33,14 @@ app.set('telegram', bot.telegram)
 
 app.use('/api', cors(), api)
 
+const messageFactory = new MessageFactory({
+  bot
+})
+
+app.set('messageFactory', messageFactory)
+
 bot.on('message', createSync({
-  messageFactory: new MessageFactory({
-    bot
-  }),
+  messageFactory,
   chatFactory: new ChatFactory({
     bot
   }),
