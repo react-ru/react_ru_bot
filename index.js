@@ -1,56 +1,46 @@
-const Telegraf = require('telegraf')
-const mongoose = require('mongoose')
-const express = require('express')
-const cors = require('cors')
-const nodemailer = require('nodemailer')
-const { MessageFactory } = require('./lib/classes/MessageFactory')
-const { ChatFactory } = require('./lib/classes/ChatFactory')
-const { UserFactory } = require('./lib/classes/UserFactory')
-const { Rehabilitation } = require('./lib/models/Rehabilitation')
-const { createSync } = require('./middleware/sync')
-const { api } = require('./api')
+const mongoose = require("mongoose");
+const express = require("express");
+const cors = require("cors");
+const nodemailer = require("nodemailer");
+const { Rehabilitation } = require("./lib/models/Rehabilitation");
+const { createSync } = require("./middleware/sync");
+const { api } = require("./api");
+const { messageFactory } = require("./lib/messageFactory");
+const { chatFactory } = require("./lib/chatFactory");
+const { userFactory } = require("./lib/userFactory");
+const { bot } = require("./lib/bot");
 
-mongoose.connect(
-  process.env.MONGODB_URI
-)
-
-const bot = new Telegraf(process.env.BOT_TOKEN)
+mongoose.connect(process.env.MONGODB_URI);
 
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT),
   auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL
   }
 });
 
-Rehabilitation.setTelegram(bot.telegram)
-Rehabilitation.setNodemailer(transporter)
+Rehabilitation.setTelegram(bot.telegram);
+Rehabilitation.setNodemailer(transporter);
 
-const app = express()
-app.set('telegram', bot.telegram)
+const app = express();
 
-app.use('/api', cors(), api)
+app.enable("trust proxy");
 
-const messageFactory = new MessageFactory({
-  bot
-})
+app.set("telegram", bot.telegram);
+app.set("messageFactory", messageFactory);
 
-app.set('messageFactory', messageFactory)
+app.use("/api", cors(), api);
 
-bot.on('message', createSync({
-  messageFactory,
-  chatFactory: new ChatFactory({
-    bot
-  }),
-  userFactory: new UserFactory({
-    bot
-  }),
-  handler({ message, chat, user }, ctx) {
-    
-  }
-}))
+bot.on(
+  "message",
+  createSync({
+    messageFactory,
+    chatFactory,
+    userFactory
+  })
+);
 
-bot.startPolling()
-app.listen(3000)
+bot.startPolling();
+app.listen(process.env.PORT);
