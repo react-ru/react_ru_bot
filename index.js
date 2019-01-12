@@ -9,6 +9,8 @@ const { messageFactory } = require("./lib/messageFactory");
 const { chatFactory } = require("./lib/chatFactory");
 const { userFactory } = require("./lib/userFactory");
 const { bot } = require("./lib/bot");
+const rateLimit = require("express-rate-limit");
+const MongoStore = require("rate-limit-mongo");
 
 mongoose.connect(process.env.MONGODB_URI);
 
@@ -31,7 +33,17 @@ app.enable("trust proxy");
 app.set("telegram", bot.telegram);
 app.set("messageFactory", messageFactory);
 
-app.use("/api", cors(), api);
+const mongoStore = new MongoStore({
+  uri: process.env.MONGODB_URI
+});
+
+const limiter = rateLimit({
+  store: mongoStore,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+app.use("/api", cors(), limiter, api);
 
 bot.on(
   "message",
