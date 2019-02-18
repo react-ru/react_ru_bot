@@ -1,33 +1,51 @@
 {
-  "name": "react_ru_bot",
+  "name": "@react_ru_bot/bot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "main": "index.ts",
+  "description": "A chat bot for tg://@react_ru",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "dev": "nodemon -r dotenv/config index.js"
+    "start": "ts-node --require dotenv/config index.ts",
+    "dev": "nodemon",
+    "test": "vitest run",
+    "seed": "knex --knexfile knexfile.ts seed:run",
+    "migrate": "knex --knexfile knexfile.ts migrate:up",
+    "rollback": "knex --knexfile knexfile.ts migrate:rollback",
+    "migrate:make": "knex migrate:make $2 --knexfile knexfile.ts -x ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "YChebotaev",
   "dependencies": {
-    "@awaitjs/express": "^0.1.4",
-    "body-parser": "^1.18.3",
-    "cors": "^2.8.5",
-    "dotenv": "^6.2.0",
-    "express": "^4.16.4",
-    "express-rate-limit": "^3.3.2",
-    "express-status-monitor": "^1.2.3",
-    "helmet": "^3.15.0",
-    "mongoose": "^5.4.1",
-    "nodemailer": "^5.0.0",
-    "rate-limit-mongo": "^1.0.3",
-    "request": "^2.88.0",
-    "telegraf": "^3.25.5"
+    "command-line-args": "^5.2.1",
+    "dotenv": "^16.0.3",
+    "knex": "^2.3.0",
+    "msgpackr": "^1.7.2",
+    "natural": "^5.2.3",
+    "sqlite3": "^5.1.2",
+    "telegraf": "^4.10.0",
+    "terminal-kit": "^3.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.4"
   },
   "devDependencies": {
-    "nodemon": "^1.18.9"
-  }
+    "@types/command-line-args": "^5.2.0",
+    "@types/fs-extra": "^9.0.13",
+    "@types/natural": "^5.1.1",
+    "@types/node": "^18.8.3",
+    "@types/terminal-kit": "^2.5.0",
+    "fs-extra": "^10.1.0",
+    "nodemon": "^2.0.20",
+    "vitest": "^0.24.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/react-ru/react_ru_bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/react-ru/react_ru_bot/issues"
+  },
+  "homepage": "https://github.com/react-ru/react_ru_bot#readme",
+  "license": "GPL-3"
 }
