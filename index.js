@@ -60,5 +60,22 @@ bot.on(
   })
 );
 
+bot.on(
+  [
+    "message",
+    "edited_message",
+    "callback_query",
+    "inline_query",
+    "shipping_query",
+    "pre_checkout_query",
+    "chosen_inline_result",
+    "channel_post",
+    "edited_channel_post"
+  ],
+  function(ctx) {
+    console.log(ctx);
+  }
+);
+
 bot.startPolling();
 app.listen(process.env.PORT);
