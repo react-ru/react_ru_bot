@@ -87,6 +87,8 @@ export const useAntispam = (): Middleware<Context> => {
         const { data } = ctx.update.callback_query
         const { orig_message_id, orig_message_text, text_label, orig_message_from, ensure_spam_message_id } = await getCallbackDataById<CallbackDataJSON>(Number(data))
 
+        if (orig_message_from.id === ctx.update.callback_query.from.id) return // Spammers cannot vote for themselves
+
         await ctx.deleteMessage(ensure_spam_message_id!)
 
         classifier.train(orig_message_text, text_label)
