@@ -6,7 +6,7 @@ import { Classifier } from '../Classifier'
 describe('useAntispam()', () => {
   describe('Classifier()', () => {
     it('should be properly trained', async () => {
-      const c = new Classifier(PorterStemmerRu, 0.2)
+      const c = new Classifier(/*PorterStemmerRu, 0.2*/)
 
       await c.pretrain()
 
@@ -17,19 +17,23 @@ describe('useAntispam()', () => {
       for (const { text, label } of examples) {
         const { label: predictedLabel, confidence } = c.predict(text)
 
-        if (confidence < 0.7) {
-          console.table({
-            text: text.substring(0, 24),
-            predictedLabel,
-            label,
-            confidence
-          })
-        }
-
         if (label === predictedLabel && label === 'spam') { tp += 1 }
         if (label === predictedLabel && label === 'ham') { tn += 1 }
         if (label !== predictedLabel && label === 'spam') { fp += 1 }
         if (label !== predictedLabel && label === 'ham') { fn += 1 }
+
+        const assertion = predictedLabel === 'spam' && label === 'ham' && confidence <= 0.5
+
+        if (predictedLabel !== label) {
+          console.table({
+            text,
+            predictedLabel,
+            label,
+            confidence
+          })
+
+          expect(assertion).toBeTruthy()
+        }
       }
 
       console.table({

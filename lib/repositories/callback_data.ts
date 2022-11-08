@@ -1,4 +1,3 @@
-import { User } from 'telegraf/types'
 import { knex } from './knex'
 
 declare module 'knex/types/tables' {
@@ -14,15 +13,7 @@ declare module 'knex/types/tables' {
 
 type CallbackData = import('knex/types/tables').CallbackData
 
-export type CallbackDataJSON = {
-  orig_message_id: number,
-  orig_message_text: string,
-  orig_message_from: User,
-  text_label: 'spam' | 'ham',
-  ensure_spam_message_id?: number
-}
-
-export const createCallbackData = async <D extends CallbackDataJSON>(
+export const createCallbackData = async <D extends object>(
   jsonOrData: string | D
 ) => {
   let json
@@ -39,7 +30,7 @@ export const createCallbackData = async <D extends CallbackDataJSON>(
   return id
 }
 
-export const getCallbackDataById = async <D extends CallbackDataJSON>(
+export const getCallbackDataById = async <D extends object>(
   id: CallbackData['id']
 ) => {
   const { json } = (await knex('callback_data').where({ id }).first('json'))!
@@ -47,7 +38,7 @@ export const getCallbackDataById = async <D extends CallbackDataJSON>(
   return JSON.parse(json) as D
 }
 
-export const updateCallbackDataById = async <D extends CallbackDataJSON>(
+export const updateCallbackDataById = async <D extends object>(
   id: number,
   partialData: Partial<D>
 ) => {

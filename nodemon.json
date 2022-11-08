@@ -1,5 +1,12 @@
 {
-  "watch": ["lib", "index.ts"],
+  "watch": [
+    "index.ts",
+    "knexfile.ts",
+    "tsconfig.json",
+    "package.json",
+    "package-lock.json",
+    "lib/**/*"
+  ],
   "ext": "ts,json",
   "exec": "ts-node --require dotenv/config index.ts"
 }

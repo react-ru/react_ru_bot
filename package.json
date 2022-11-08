@@ -13,16 +13,21 @@
     "seed": "knex --knexfile knexfile.ts seed:run",
     "migrate": "knex --knexfile knexfile.ts migrate:up",
     "rollback": "knex --knexfile knexfile.ts migrate:rollback",
-    "migrate:make": "knex migrate:make $2 --knexfile knexfile.ts -x ts"
+    "migrate:make": "knex migrate:make $2 --knexfile knexfile.ts -x ts",
+    "docker:build": "docker build . -t react_ru_bot"
   },
   "keywords": [],
   "author": "YChebotaev",
   "dependencies": {
     "command-line-args": "^5.2.1",
     "dotenv": "^16.0.3",
+    "fs-extra": "^10.1.0",
     "knex": "^2.3.0",
     "msgpackr": "^1.7.2",
     "natural": "^5.2.3",
+    "pino": "^8.7.0",
+    "pino-abstract-transport": "^1.0.0",
+    "pino-pretty": "^9.1.1",
     "sqlite3": "^5.1.2",
     "telegraf": "^4.10.0",
     "terminal-kit": "^3.0.0",
@@ -33,11 +38,11 @@
     "@types/command-line-args": "^5.2.0",
     "@types/fs-extra": "^9.0.13",
     "@types/natural": "^5.1.1",
-    "@types/node": "^18.8.3",
+    "@types/node": "^18.11.9",
     "@types/terminal-kit": "^2.5.0",
-    "fs-extra": "^10.1.0",
     "nodemon": "^2.0.20",
-    "vitest": "^0.24.1"
+    "npm-check-updates": "^16.3.18",
+    "vitest": "^0.25.1"
   },
   "repository": {
     "type": "git",

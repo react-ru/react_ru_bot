@@ -1,8 +1,10 @@
+import { logger as parentLogger } from '../../pino'
 import { Classifier } from './Classifier'
-import { EnsureSpamMessage } from './messages/EnsureSpamMessage'
-import { sendNotification, notifications } from '../../notifications'
+import { createCallbackData, getCallbackDataById, updateCallbackDataById, createTotem } from '../../repositories'
+import type { CallbackDataJSON } from './types'
 import type { Middleware, Context } from 'telegraf'
-import { createCallbackData, getCallbackDataById, updateCallbackDataById } from '../../repositories'
+
+const logger = parentLogger.child({ name: 'useAntispam' })
 
 export const useAntispam = (): Middleware<Context> => {
   const classifier = new Classifier()
@@ -12,44 +14,70 @@ export const useAntispam = (): Middleware<Context> => {
   return async (ctx) => {
     await classifierReady
 
+    const isAuthorHasTotem: boolean = Reflect.get(ctx, 'author_has_totem') ?? false
+
+    if (isAuthorHasTotem) return // Skip spam check
+
     if ('message' in ctx.update) {
       if ('text' in ctx.update.message) {
         const { text, message_id, from } = ctx.update.message
         const { label, confidence } = classifier.predict(text)
 
+        logger.info({
+          text,
+          label,
+          confidence,
+          message_id,
+          from
+        })
+
         if (label === 'spam') {
-          if (confidence < 0.7) {
-            const spamCallbackDataId = await createCallbackData({
+          if (confidence < 0.5) {
+            const spamCallbackDataId = await createCallbackData<CallbackDataJSON>({
               orig_message_id: message_id,
               orig_message_from: from,
               orig_message_text: text,
               text_label: 'spam',
             })
-            const hamCallbackDataId = await createCallbackData({
+            const hamCallbackDataId = await createCallbackData<CallbackDataJSON>({
               orig_message_id: message_id,
               orig_message_text: text,
               orig_message_from: from,
               text_label: 'ham'
             })
 
-            const ensureSpamMessage = new EnsureSpamMessage({
-              text,
-              spamCallbackData: spamCallbackDataId.toString(),
-              hamCallbackData: hamCallbackDataId.toString()
-            })
+            const { message_id: ensure_spam_message_id } = await ctx.reply(
+              'Это спам?',
+              {
+                reply_to_message_id: message_id,
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: 'Да, это спам',
+                        callback_data: spamCallbackDataId.toString()
+                      },
+                      {
+                        text: 'Нет, это не спам',
+                        callback_data: hamCallbackDataId.toString()
+                      }
+                    ]
+                  ]
+                }
+              }
+            )
 
-            const { message_id: ensure_spam_message_id } = await ctx.reply.apply(ctx, <any>ensureSpamMessage.toReplyArgs())
-
-            await updateCallbackDataById(spamCallbackDataId, { ensure_spam_message_id })
-            await updateCallbackDataById(hamCallbackDataId, { ensure_spam_message_id })
+            await updateCallbackDataById<CallbackDataJSON>(spamCallbackDataId, { ensure_spam_message_id })
+            await updateCallbackDataById<CallbackDataJSON>(hamCallbackDataId, { ensure_spam_message_id })
           } else {
             const isDeleted = await ctx.deleteMessage(message_id)
 
             if (isDeleted) {
-              await sendNotification(new notifications.SpamDeleted({
-                text,
-                author: from,
-              }))
+              logger.info({
+                type: 'spam-deleted',
+                text: text,
+                author: from
+              })
             }
           }
         }
@@ -57,7 +85,7 @@ export const useAntispam = (): Middleware<Context> => {
     } else
       if ('callback_query' in ctx.update) {
         const { data } = ctx.update.callback_query
-        const { orig_message_id, orig_message_text, text_label, orig_message_from, ensure_spam_message_id } = await getCallbackDataById(Number(data))
+        const { orig_message_id, orig_message_text, text_label, orig_message_from, ensure_spam_message_id } = await getCallbackDataById<CallbackDataJSON>(Number(data))
 
         await ctx.deleteMessage(ensure_spam_message_id!)
 
@@ -67,12 +95,23 @@ export const useAntispam = (): Middleware<Context> => {
           const isDeleted = await ctx.deleteMessage(orig_message_id)
 
           if (isDeleted) {
-            await sendNotification(new notifications.SpamDeleted({
+            logger.info({
+              type: 'spam-deleted',
               text: orig_message_text,
-              author: orig_message_from,
-            }))
+              author: orig_message_from
+            })
           }
-        }
+        } else
+          if (text_label === 'ham') {
+            await createTotem({ user_id: orig_message_from.id })
+
+            Reflect.set(ctx, 'author_has_totem', true)
+
+            logger.info({
+              type: 'totem-granted',
+              receiver: orig_message_from
+            })
+          }
       }
   }
 }
