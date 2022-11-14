@@ -14,7 +14,7 @@
     "migrate": "knex --knexfile knexfile.ts migrate:up",
     "rollback": "knex --knexfile knexfile.ts migrate:rollback",
     "migrate:make": "knex migrate:make $2 --knexfile knexfile.ts -x ts",
-    "docker:build": "docker build . -t react_ru_bot"
+    "build:container": "docker build . -t ychebotaev/react_ru_bot"
   },
   "keywords": [],
   "author": "YChebotaev",
@@ -23,7 +23,6 @@
     "dotenv": "^16.0.3",
     "fs-extra": "^10.1.0",
     "knex": "^2.3.0",
-    "msgpackr": "^1.7.2",
     "natural": "^5.2.3",
     "pino": "^8.7.0",
     "pino-abstract-transport": "^1.0.0",
