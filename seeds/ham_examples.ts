@@ -9,7 +9,7 @@ export async function seed(knex: Knex) {
     .messages
     .filter(({ type }: { type: string }) => type === 'message')
     .flatMap(telegram.recursivelyUnwrapText)
-    .filter(({}, index: number) => !(index % 1000)) // Each 1000th
+    // .filter(({}, index: number) => !(index % 1000)) // Each 1000th
 
   await knex.transaction(async t => {
     for (const text of ham) {

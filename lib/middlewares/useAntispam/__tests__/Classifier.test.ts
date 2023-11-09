@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PorterStemmerRu } from 'natural'
+// import { PorterStemmerRu } from 'natural'
 import { getAllExamples } from '../../../repositories/examples'
 import { Classifier } from '../Classifier'
 
