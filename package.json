@@ -8,48 +8,19 @@
   },
   "scripts": {
     "start": "ts-node --require dotenv/config index.ts",
-    "dev": "nodemon",
-    "test": "vitest run",
-    "seed": "knex --knexfile knexfile.ts seed:run",
-    "migrate": "knex --knexfile knexfile.ts migrate:up",
-    "rollback": "knex --knexfile knexfile.ts migrate:rollback",
-    "migrate:make": "knex migrate:make $2 --knexfile knexfile.ts -x ts",
-    "build:container": "docker build . -t ychebotaev/react_ru_bot"
+    "dev": "nodemon"
   },
   "keywords": [],
   "author": "YChebotaev",
   "dependencies": {
-    "command-line-args": "^5.2.1",
     "dotenv": "^16.0.3",
-    "fs-extra": "^10.1.0",
-    "knex": "^2.3.0",
-    "natural": "^5.2.3",
     "pino": "^8.7.0",
-    "pino-abstract-transport": "^1.0.0",
     "pino-pretty": "^9.1.1",
-    "sqlite3": "^5.1.2",
     "telegraf": "^4.10.0",
-    "terminal-kit": "^3.0.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.8.4"
+    "ts-node": "^10.9.1"
   },
   "devDependencies": {
-    "@types/command-line-args": "^5.2.0",
-    "@types/fs-extra": "^9.0.13",
-    "@types/natural": "^5.1.1",
-    "@types/node": "^18.11.9",
-    "@types/terminal-kit": "^2.5.0",
-    "nodemon": "^2.0.20",
-    "npm-check-updates": "^16.3.18",
-    "vitest": "^0.25.1"
+    "nodemon": "^2.0.20"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/react-ru/react_ru_bot.git"
-  },
-  "bugs": {
-    "url": "https://github.com/react-ru/react_ru_bot/issues"
-  },
-  "homepage": "https://github.com/react-ru/react_ru_bot#readme",
   "license": "GPL-3"
 }

@@ -1,37 +1,29 @@
-import {
-  middlewares,
-  createBot,
-  getOptions,
-  pino
-} from './lib'
+import { Telegraf } from 'telegraf'
+import pino from 'pino'
+import { titorelli } from './lib'
 
-const bootstrap = async () => {
-  const { token } = await getOptions()
-  const bot = createBot({ token })
+const bot = new Telegraf(process.env["BOT_TOKEN"]!)
+const logger = pino()
 
-  // bot.use(Telegraf.log())
-  bot.use(middlewares.useTotem())
-  bot.use(middlewares.useAntispam())
+bot.use((ctx) => {
+  if ('message' in ctx.update) {
+    if ('text' in ctx.update.message) {
+      const { text, message_id } = ctx.update.message
 
-  {
-    process.once('SIGINT', () => bot.stop('SIGINT'))
-    process.once('SIGTERM', () => bot.stop('SIGTERM'))
-  }
+      titorelli.predict({ text })
+        .then(({ value: category }) => {
+          logger.info("Message \"%s\" classifed as \"%s\"", text, category)
 
-  {
-    pino.telegramTransportConfig.bot = bot
-
-    for (const chatId of process.env['LOG_TO_CHAT_IDS']?.split(',') ?? []) {
-
-      pino.telegramTransportConfig.addChatId(Number(chatId))
+          if (category === 'spam') {
+            return ctx.deleteMessage(message_id)
+          }
+        })
+        .catch(e => console.error(e))
     }
-
-    bot.command('/send_logs_here', (update) => {
-      pino.telegramTransportConfig.addChatId(update.chat.id)
-    })
   }
+})
 
-  return await bot.launch()
-}
+bot.launch()
 
-bootstrap()
+process.once('SIGINT', () => bot.stop('SIGINT'))
+process.once('SIGTERM', () => bot.stop('SIGTERM'))
