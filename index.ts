@@ -11,10 +11,10 @@ bot.use((ctx) => {
       const { text, message_id } = ctx.update.message
 
       titorelli.predict({ text })
-        .then(({ value: category }) => {
-          logger.info("Message \"%s\" classifed as \"%s\"", text, category)
+        .then(({ value: category, confidence }) => {
+          logger.info("Message \"%s\" classifed as \"%s\" with confidence = %s", text, category, confidence)
 
-          if (category === 'spam') {
+          if (category === 'spam' && confidence > 0.3) {
             return ctx.deleteMessage(message_id)
           }
         })

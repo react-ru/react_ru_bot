@@ -13,7 +13,5 @@ export const predict = async ({ text }: UnlabeledExample) => {
   })
   const data = await resp.json() as Prediction
 
-  console.log('data =', data)
-
   return data
 }

@@ -11,4 +11,5 @@ export type UnlabeledExample = {
 
 export type Prediction = {
   value: Labels
+  confidence: number
 }
