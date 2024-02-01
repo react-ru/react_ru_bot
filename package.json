@@ -8,16 +8,24 @@
   },
   "scripts": {
     "start": "ts-node --require dotenv/config index.ts",
-    "dev": "nodemon"
+    "dev": "nodemon",
+    "migrate:make": "knex migrate:make $1 --knexfile ./knexfile.ts -x ts",
+    "seed:make": "knex seed:make $1 --knexfile ./knexfile.ts -x ts",
+    "migrate:latest": "knex migrate:latest --knexfile ./knexfile.ts",
+    "migrate:rollback:all": "knex migrate:rollback --all --knexfile ./knexfile.ts"
   },
   "keywords": [],
   "author": "YChebotaev",
   "dependencies": {
+    "cross-fetch": "^4.0.0",
     "dotenv": "^16.0.3",
+    "knex": "^3.1.0",
     "pino": "^8.7.0",
     "pino-pretty": "^9.1.1",
+    "sqlite3": "^5.1.7",
     "telegraf": "^4.10.0",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"
