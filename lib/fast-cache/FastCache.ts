@@ -1,4 +1,4 @@
-import type { LabeledExample, Labels, UnlabeledExample } from "../titorelli";
+import type { LabeledExample, Labels, UnlabeledExample } from "@titorelli/client"
 
 export class FastCache {
   private index: Record<string, Labels> = {}

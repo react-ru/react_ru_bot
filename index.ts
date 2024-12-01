@@ -38,11 +38,13 @@ bot.use(async (ctx) => {
             } else if (label === 'ham') {
               // DO NOTHING
             }
+
+            return
           }
         }
 
         {
-          const { value: category, confidence } = await titorelli.predict({
+          const { value: category, confidence } = await titorelli.client.model('react_ru').predict({
             text,
           });
 
