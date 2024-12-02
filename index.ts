@@ -5,22 +5,39 @@ import { totemCreate, totemDeleteByTgUserId, totemGetByTgUserId } from "./lib/pe
 import { FastCache } from "./lib/fast-cache";
 import { RecentMessagesStore } from "./lib/recent-messages";
 import { differenceInMinutes } from "date-fns";
+import { SpamLockService } from "./lib/spam-lock-service";
 
 const bot = new Telegraf(process.env["BOT_TOKEN"]!);
-const logger = pino();
 const fastCache = new FastCache(30, 4)
-const recentMessages = new RecentMessagesStore(30)
+const logger = pino();
+const recentMessages = new RecentMessagesStore(10)
+const spamCommandLockService = new SpamLockService(3600000 /* 1 hour */)
 const ownModel = titorelli.client.model('react_ru')
 
 bot.command('spam', async (ctx) => {
+  if (spamCommandLockService.locked(ctx.from.id)) {
+    logger.info("spam command issued, but user with id = %s locked", ctx.from.id)
+
+    await ctx.deleteMessage()
+
+    return
+  }
+
   const replyToMessageId = ctx.message.reply_to_message?.message_id
 
   if (!replyToMessageId) return
 
   const originalMessage = recentMessages.findById(replyToMessageId)
+
+  if (!originalMessage) {
+    logger.info('Original message for /spam command cannot be found (too old or cache dropped)')
+
+    return
+  }
+
   const originalText = Reflect.get(originalMessage, 'text') as string
   const originalTotem = await totemGetByTgUserId(originalMessage.from.id)
-  let toRemove = false
+  let toRemove = false;
 
   if (originalTotem && originalTotem.createdAt != null) {
     const totemCreatedAtDate = new Date(originalTotem.createdAt)
@@ -40,6 +57,8 @@ bot.command('spam', async (ctx) => {
     originalText,
     ctx.message.from.username || ctx.message.from.id
   )
+
+  spamCommandLockService.lock(ctx.message.from.id)
 
   await totemDeleteByTgUserId(originalMessage.from.id)
 
