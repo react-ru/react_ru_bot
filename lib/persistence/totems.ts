@@ -19,3 +19,10 @@ export const totemGetByTgUserId = async (tgUserId: number) => {
     .where("tgUserId", tgUserId)
     .first();
 };
+
+export const totemDeleteByTgUserId = async (tgUserId: number) => {
+  return knex
+    .delete()
+    .from('totems')
+    .where('tgUserId', tgUserId)
+}

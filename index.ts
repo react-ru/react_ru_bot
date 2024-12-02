@@ -1,13 +1,15 @@
 import { Telegraf } from "telegraf";
 import pino from "pino";
 import { titorelli } from "./lib";
-import { totemCreate, totemGetByTgUserId } from "./lib/persistence";
+import { totemCreate, totemDeleteByTgUserId, totemGetByTgUserId } from "./lib/persistence";
 import { FastCache } from "./lib/fast-cache";
-import { text } from "telegraf/typings/button";
+import { RecentMessagesStore } from "./lib/recent-messages";
+import { differenceInMinutes } from "date-fns";
 
 const bot = new Telegraf(process.env["BOT_TOKEN"]!);
 const logger = pino();
 const fastCache = new FastCache(30, 4)
+const recentMessages = new RecentMessagesStore(30)
 const ownModel = titorelli.client.model('react_ru')
 
 bot.command('spam', async (ctx) => {
@@ -15,11 +17,31 @@ bot.command('spam', async (ctx) => {
 
   if (!replyToMessageId) return
 
+  const originalMessage = recentMessages.findById(replyToMessageId)
+  const originalText = Reflect.get(originalMessage, 'text') as string
+  const originalTotem = await totemGetByTgUserId(originalMessage.from.id)
+  let toRemove = false
+
+  if (originalTotem && originalTotem.createdAt != null) {
+    const totemCreatedAtDate = new Date(originalTotem.createdAt)
+    const howOldInMinutes = differenceInMinutes(new Date(), totemCreatedAtDate)
+
+    if (howOldInMinutes < 30) {
+      toRemove = true
+    }
+  } else {
+    toRemove = true
+  }
+
+  if (!toRemove) return
+
   logger.info(
-    "Message with id = '%s' deleted because of /spam commad from user %s",
-    replyToMessageId,
+    "Message '%s' deleted because of /spam commad from user %s",
+    originalText,
     ctx.message.from.username || ctx.message.from.id
   )
+
+  await totemDeleteByTgUserId(originalMessage.from.id)
 
   await ctx.deleteMessage(replyToMessageId)
   await ctx.deleteMessage()
@@ -30,6 +52,8 @@ bot.use(async (ctx) => {
 
   if ("message" in ctx.update) {
     if ("text" in ctx.update.message) {
+      recentMessages.add(ctx.update.message)
+
       const { text, message_id } = ctx.update.message;
       const fromId = ctx.update.message.from.id;
 

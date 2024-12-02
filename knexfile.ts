@@ -6,4 +6,5 @@ export default {
   connection: {
     filename: path.resolve(__dirname, "data/db.sqlite3"),
   },
+  useNullAsDefault: true
 } satisfies Knex.Config;
