@@ -2,24 +2,31 @@ import type { LabeledExample, Labels, UnlabeledExample } from "@titorelli/client
 
 export class FastCache {
   private index: Record<string, Labels> = {}
-  private examples: LabeledExample[] = []
 
-  constructor(private maxStoredExamples: number) { }
+  constructor(
+    private maxStoredExamples: number,
+    private minDistance: number
+  ) { }
 
-  getLabel(example: UnlabeledExample) {
-    if (this.examples.length === 0) return undefined
+  get(example: UnlabeledExample) {
+    if (this.size() === 0) return undefined
 
     return this.index[example.text]
   }
 
-  save(example: LabeledExample) {
-    if (this.examples.length >= this.maxStoredExamples) {
-      const [exampleToRemove] = this.examples.splice(0, 1)
+  add(example: LabeledExample) {
+    if (this.size() >= this.maxStoredExamples) {
+      const keys = Object.keys(this.index)
 
-      delete this.index[exampleToRemove.text]
+      const [keyToRemove] = keys.splice(0, 1)
+
+      delete this.index[keyToRemove]
     }
 
-    this.examples.push(example)
     this.index[example.text] = example.label
+  }
+
+  private size() {
+    return Object.keys(this.index).length
   }
 }
