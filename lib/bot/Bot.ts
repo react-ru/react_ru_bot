@@ -94,13 +94,15 @@ export class Bot {
     bot.use(async (ctx) => {
       this.logger.info("Received update typed as \"%s\":", ctx.updateType)
 
-      this.logger.info(ctx.update)
-
       if ("message" in ctx.update) {
-        if ("text" in ctx.update.message) {
+        if ("text" in ctx.update.message || 'caption' in ctx.update.message) {
           this.recentMessages.add(ctx.update.message)
 
-          const { text, message_id } = ctx.update.message;
+          const text: string = Reflect.get(ctx.update.message, 'text') || Reflect.get(ctx.update.message, 'caption')
+
+          if (!text) return
+
+          const { message_id } = ctx.update.message;
           const fromId = ctx.update.message.from.id;
 
           const totem = await totemGetByTgUserId(fromId);
