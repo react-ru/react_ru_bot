@@ -6,7 +6,7 @@ import { SpamLockService } from "../spam-lock-service"
 import { titorelli } from ".."
 import { differenceInMinutes } from "date-fns"
 import { totemGetByTgUserId, totemDeleteByTgUserId, totemCreate } from "../persistence"
-import { Telegraf } from "telegraf"
+import { deunionize, Telegraf } from "telegraf"
 
 export class Bot {
   private logger: Logger
@@ -48,7 +48,7 @@ export class Bot {
 
     bot.command('spam', async (ctx) => {
       if (this.spamCommandLockService.locked(ctx.from.id)) {
-        this.logger.info("spam command issued, but user with id = %s locked", ctx.from.id)
+        this.logger.info("spam command received, but user with id = %s locked", ctx.from.id)
 
         await ctx.deleteMessage()
 
@@ -57,45 +57,39 @@ export class Bot {
 
       const replyToMessageId = ctx.message.reply_to_message?.message_id
 
-      if (!replyToMessageId) return
+      if (!replyToMessageId) {
+        this.logger.info('spam command received but it\'s not in a reply')
+
+        return
+      }
 
       const originalMessage = this.recentMessages.findById(replyToMessageId)
 
       if (!originalMessage) {
-        this.logger.info('Original message for /spam command cannot be found (too old or cache dropped)')
+        this.logger.info('Original message for /spam command cannot be found (too old or cache was dropped)')
 
         return
       }
 
       const originalText = Reflect.get(originalMessage, 'text') as string
-      const originalTotem = await totemGetByTgUserId(originalMessage.from.id)
-      let toRemove = false;
 
-      if (originalTotem && originalTotem.createdAt != null) {
-        const totemCreatedAtDate = new Date(originalTotem.createdAt)
-        const howOldInMinutes = differenceInMinutes(new Date(), totemCreatedAtDate)
+      if (!originalText) {
+        this.logger.info('Text of original message cannot be retrieved')
 
-        if (howOldInMinutes < 30) {
-          toRemove = true
-        }
-      } else {
-        toRemove = true
+        return
       }
 
-      if (!toRemove) return
+      this.spamCommandLockService.lock(ctx.message.from.id)
+
+      await totemDeleteByTgUserId(originalMessage.from.id)
+      await ctx.deleteMessage(replyToMessageId)
+      await ctx.deleteMessage()
 
       this.logger.info(
         "Message '%s' deleted because of /spam commad from user %s",
         originalText,
         ctx.message.from.username || ctx.message.from.id
       )
-
-      this.spamCommandLockService.lock(ctx.message.from.id)
-
-      await totemDeleteByTgUserId(originalMessage.from.id)
-
-      await ctx.deleteMessage(replyToMessageId)
-      await ctx.deleteMessage()
     })
 
     bot.use(async (ctx) => {
