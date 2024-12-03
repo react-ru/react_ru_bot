@@ -1,12 +1,11 @@
-import { TitorelliModelClient } from "@titorelli/client"
+import { Telegraf } from "telegraf"
 import { Logger } from "pino"
+import { TitorelliModelClient } from "@titorelli/client"
 import { FastCache } from "../fast-cache"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import { titorelli } from ".."
-import { differenceInMinutes } from "date-fns"
 import { totemGetByTgUserId, totemDeleteByTgUserId, totemCreate } from "../persistence"
-import { deunionize, Telegraf } from "telegraf"
 
 export class Bot {
   private logger: Logger
@@ -93,7 +92,9 @@ export class Bot {
     })
 
     bot.use(async (ctx) => {
-      this.logger.info("Received update typed as \"%s\"", ctx.updateType)
+      this.logger.info("Received update typed as \"%s\":", ctx.updateType)
+
+      this.logger.trace(ctx.update)
 
       if ("message" in ctx.update) {
         if ("text" in ctx.update.message) {
