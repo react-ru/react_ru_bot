@@ -94,7 +94,7 @@ export class Bot {
     bot.use(async (ctx) => {
       this.logger.info("Received update typed as \"%s\":", ctx.updateType)
 
-      this.logger.trace(ctx.update)
+      this.logger.info(ctx.update)
 
       if ("message" in ctx.update) {
         if ("text" in ctx.update.message) {
