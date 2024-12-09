@@ -1,3 +1,4 @@
+import { Logger } from "pino"
 import type { LabeledExample, Labels, UnlabeledExample } from "@titorelli/client"
 
 export class FastCache {
@@ -5,7 +6,8 @@ export class FastCache {
 
   constructor(
     private maxStoredExamples: number,
-    private minDistance: number
+    private minDistance: number,
+    private logger: Logger
   ) { }
 
   get(example: UnlabeledExample) {
@@ -16,12 +18,16 @@ export class FastCache {
 
   add(example: LabeledExample) {
     if (this.size() >= this.maxStoredExamples) {
+      this.logger.info('Size of the index exceed maxStoredExamples, removing first key')
+
       const keys = Object.keys(this.index)
 
       const [keyToRemove] = keys.splice(0, 1)
 
       delete this.index[keyToRemove]
     }
+
+    this.logger.info('Addming example to FastCache label = %s, text = %s', example.label, example.text)
 
     this.index[example.text] = example.label
   }

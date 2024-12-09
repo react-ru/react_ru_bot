@@ -35,9 +35,9 @@ export class Bot {
   }) {
     this.logger = conf.logger
     this.token = conf.token
-    this.fastCache = new FastCache(conf.fastCache.maxStoredExamples, 0)
-    this.recentMessages = new RecentMessagesStore(conf.recentMessages.maxCount)
-    this.spamCommandLockService = new SpamLockService(conf.spamCommandLockService.lockDurationMs)
+    this.fastCache = new FastCache(conf.fastCache.maxStoredExamples, 0, this.logger)
+    this.recentMessages = new RecentMessagesStore(conf.recentMessages.maxCount, this.logger)
+    this.spamCommandLockService = new SpamLockService(conf.spamCommandLockService.lockDurationMs, this.logger)
     this.model = titorelli.client.model(conf.model.modelId)
     this.ready = this.initialize()
   }
@@ -46,49 +46,93 @@ export class Bot {
     const bot = this.bot = new Telegraf(this.token)
 
     bot.command('spam', async (ctx) => {
-      if (this.spamCommandLockService.locked(ctx.from.id)) {
-        this.logger.info("spam command received, but user with id = %s locked", ctx.from.id)
+      const admins = await ctx.getChatAdministrators()
 
+      const isAdmin = admins.some(admin => admin.user.id === ctx.from.id)
+
+      if (isAdmin) {
+        this.logger.info("Spam command received from admin = %s", ctx.from.username)
+
+        const replyToMessageId = ctx.message.reply_to_message?.message_id
+
+        if (!replyToMessageId) {
+          this.logger.warn('spam command received but it\'s not in a reply')
+
+          return
+        }
+
+        const originalMessage = this.recentMessages.findById(replyToMessageId)
+
+        if (!originalMessage) {
+          this.logger.warn('Original message for /spam command cannot be found (too old or cache was dropped)')
+
+          return
+        }
+
+        const originalText = Reflect.get(originalMessage, 'text') as string
+
+        if (!originalText) {
+          this.logger.warn('Text of original message cannot be retrieved')
+
+          return
+        }
+
+        await totemDeleteByTgUserId(originalMessage.from.id)
+        await ctx.deleteMessage(replyToMessageId)
         await ctx.deleteMessage()
 
-        return
+        this.logger.info(
+          "Message '%s' deleted because of /spam commad from user %s",
+          originalText,
+          ctx.message.from.username || ctx.message.from.id
+        )
+
+        // TODO: Train titorelli classifier
+      } else {
+        if (this.spamCommandLockService.locked(ctx.from.id)) {
+          this.logger.warn("spam command received, but user with id = %s locked", ctx.from.id)
+
+          await ctx.deleteMessage()
+
+          return
+        }
+
+        const replyToMessageId = ctx.message.reply_to_message?.message_id
+
+        if (!replyToMessageId) {
+          this.logger.warn('spam command received but it\'s not in a reply')
+
+          return
+        }
+
+        const originalMessage = this.recentMessages.findById(replyToMessageId)
+
+        if (!originalMessage) {
+          this.logger.warn('Original message for /spam command cannot be found (too old or cache was dropped)')
+
+          return
+        }
+
+        const originalText = Reflect.get(originalMessage, 'text') as string
+
+        if (!originalText) {
+          this.logger.warn('Text of original message cannot be retrieved')
+
+          return
+        }
+
+        this.spamCommandLockService.lock(ctx.message.from.id)
+
+        await totemDeleteByTgUserId(originalMessage.from.id)
+        await ctx.deleteMessage(replyToMessageId)
+        await ctx.deleteMessage()
+
+        this.logger.info(
+          "Message '%s' deleted because of /spam commad from user %s",
+          originalText,
+          ctx.message.from.username || ctx.message.from.id
+        )
       }
-
-      const replyToMessageId = ctx.message.reply_to_message?.message_id
-
-      if (!replyToMessageId) {
-        this.logger.info('spam command received but it\'s not in a reply')
-
-        return
-      }
-
-      const originalMessage = this.recentMessages.findById(replyToMessageId)
-
-      if (!originalMessage) {
-        this.logger.info('Original message for /spam command cannot be found (too old or cache was dropped)')
-
-        return
-      }
-
-      const originalText = Reflect.get(originalMessage, 'text') as string
-
-      if (!originalText) {
-        this.logger.info('Text of original message cannot be retrieved')
-
-        return
-      }
-
-      this.spamCommandLockService.lock(ctx.message.from.id)
-
-      await totemDeleteByTgUserId(originalMessage.from.id)
-      await ctx.deleteMessage(replyToMessageId)
-      await ctx.deleteMessage()
-
-      this.logger.info(
-        "Message '%s' deleted because of /spam commad from user %s",
-        originalText,
-        ctx.message.from.username || ctx.message.from.id
-      )
     })
 
     bot.use(async (ctx) => {
