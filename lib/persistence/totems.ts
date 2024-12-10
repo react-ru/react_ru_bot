@@ -5,6 +5,7 @@ export const totemCreate = async (tgUserId: number) => {
   const [{ id }] = await knex
     .insert({
       tgUserId,
+      createdAt: new Date().getTime()
     })
     .into("totems")
     .returning("id");

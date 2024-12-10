@@ -6,6 +6,9 @@ import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import { titorelli } from ".."
 import { totemGetByTgUserId, totemDeleteByTgUserId, totemCreate } from "../persistence"
+import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/blackMarks"
+import { banCandidateCreate } from "../persistence/banCandidates"
+import { exampleCreate, exampleUpdate } from "../persistence/examples"
 
 export class Bot {
   private logger: Logger
@@ -78,6 +81,7 @@ export class Bot {
         }
 
         await totemDeleteByTgUserId(originalMessage.from.id)
+        await assignToTgUserId(originalMessage.from.id)
         await ctx.deleteMessage(replyToMessageId)
         await ctx.deleteMessage()
 
@@ -124,6 +128,7 @@ export class Bot {
         this.spamCommandLockService.lock(ctx.message.from.id)
 
         await totemDeleteByTgUserId(originalMessage.from.id)
+        await assignToTgUserId(originalMessage.from.id)
         await ctx.deleteMessage(replyToMessageId)
         await ctx.deleteMessage()
 
@@ -146,8 +151,36 @@ export class Bot {
 
           if (!text) return
 
-          const { message_id } = ctx.update.message;
-          const fromId = ctx.update.message.from.id;
+          const { message_id, from } = ctx.update.message;
+
+          const exampleId = await exampleCreate(message_id, from, text)
+
+          const fromId = from.id;
+
+          {
+            const blackMarks = await getAssignedTimesByTgUserId(fromId)
+
+            if (blackMarks >= 3) {
+              await banCandidateCreate(ctx.update.message.from)
+
+              this.logger.info(
+                'User %s market as ban-candidate',
+                ctx.message.from.username ?? ctx.message.from.id
+              )
+
+              await exampleUpdate(exampleId, {
+                classifier: 'black-mark',
+                label: 'spam',
+                confidence: 1
+              })
+
+              await ctx.deleteMessage()
+
+              this.logger.info('Message "%s" removed because author has %s black marks', text, blackMarks)
+
+              return
+            }
+          }
 
           const totem = await totemGetByTgUserId(fromId);
 
@@ -158,7 +191,11 @@ export class Bot {
               text,
             );
 
-            // Do nothing
+            await exampleUpdate(exampleId, {
+              classifier: 'totem',
+              label: 'ham',
+              confidence: 1
+            })
           } else {
             {
               const label = this.fastCache.get({ text })
@@ -166,7 +203,14 @@ export class Bot {
               if (label) {
                 this.logger.info('Message "%s" fast-classified as "%s"', text, label)
 
+                await exampleUpdate(exampleId, {
+                  classifier: 'fast-classifier',
+                  confidence: 1,
+                  label
+                })
+
                 if (label === 'spam') {
+                  await assignToTgUserId(fromId)
                   await ctx.deleteMessage(message_id)
                 } else if (label === 'ham') {
                   // DO NOTHING
@@ -190,7 +234,14 @@ export class Bot {
                 confidence,
               );
 
+              await exampleUpdate(exampleId, {
+                classifier: 'titorelli',
+                confidence,
+                label: category
+              })
+
               if (category === "spam" && confidence > 0.3) {
+                await assignToTgUserId(fromId)
                 await ctx.deleteMessage(message_id);
 
                 return;
