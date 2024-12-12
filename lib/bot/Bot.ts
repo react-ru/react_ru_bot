@@ -1,6 +1,5 @@
 import { Telegraf } from "telegraf"
 import { Logger } from "pino"
-import { TitorelliModelClient } from "@titorelli/client"
 import { FastCache } from "../fast-cache"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
@@ -16,7 +15,6 @@ export class Bot {
   private fastCache: FastCache
   private recentMessages: RecentMessagesStore
   private spamCommandLockService: SpamLockService
-  private model: TitorelliModelClient
   private bot: Telegraf
   private ready: Promise<void>
 
@@ -32,16 +30,12 @@ export class Bot {
     spamCommandLockService: {
       lockDurationMs: number
     }
-    model: {
-      modelId: string
-    }
   }) {
     this.logger = conf.logger
     this.token = conf.token
     this.fastCache = new FastCache(conf.fastCache.maxStoredExamples, 0, this.logger)
     this.recentMessages = new RecentMessagesStore(conf.recentMessages.maxCount, this.logger)
     this.spamCommandLockService = new SpamLockService(conf.spamCommandLockService.lockDurationMs, this.logger)
-    this.model = titorelli.client.model(conf.model.modelId)
     this.ready = this.initialize()
   }
 
@@ -164,7 +158,7 @@ export class Bot {
               await banCandidateCreate(ctx.update.message.from)
 
               this.logger.info(
-                'User %s market as ban-candidate',
+                'User %s marked as ban-candidate',
                 ctx.message.from.username ?? ctx.message.from.id
               )
 
@@ -221,8 +215,9 @@ export class Bot {
             }
 
             {
-              const { value: category, confidence } = await this.model.predict({
+              const { value: category, confidence } = await titorelli.client.predict({
                 text,
+                tgUserId: fromId
               });
 
               this.fastCache.add({ text, label: category })
