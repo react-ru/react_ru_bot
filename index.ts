@@ -6,8 +6,7 @@ const bot = new Bot({
   logger: pino(),
   fastCache: { maxStoredExamples: 30 },
   recentMessages: { maxCount: 10 },
-  spamCommandLockService: { lockDurationMs: 3600000 /* 1 hour */ },
-  model: { modelId: 'react_ru' }
+  spamCommandLockService: { lockDurationMs: 3600000 /* 1 hour */ }
 })
 
 bot.launch()
