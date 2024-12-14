@@ -26,12 +26,21 @@ export const exampleCreate = async (messageId: number, from: User, text: string)
   return id
 }
 
-export const exampleUpdate = async (id: number, { classifier, label, confidence }: Pick<Example, 'classifier' | 'label' | 'confidence'>) => {
+export const exampleGetByMessageId = async (messageId: number) => {
+  return knex
+    .select<Example[]>('*')
+    .from('examples')
+    .where('messageId', messageId)
+    .first()
+}
+
+export const exampleUpdate = async (id: number, { classifier, label, confidence, reason }: Pick<Example, 'classifier' | 'label' | 'confidence' | 'reason'>) => {
   await knex('examples')
     .update({
       classifier,
       label,
       confidence,
+      reason,
       updatedAt: new Date().getTime()
     })
     .where('id', id)

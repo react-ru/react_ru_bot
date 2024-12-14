@@ -1,27 +1,19 @@
 import { Logger } from "pino";
-import type { Message } from "telegraf/typings/core/types/typegram";
+import { exampleGetByMessageId } from "../persistence";
 
 export class RecentMessagesStore {
-  private messages: Message[] = []
-
   constructor(
     private maxCount: number,
     private logger: Logger
   ) { }
 
-  add(message: Message) {
-    if (this.messages.length >= this.maxCount) {
-      this.logger.info('messages exceed maxCount, removing first message from list')
+  add(message: never) { }
 
-      this.messages.splice(0, 1)
-    }
+  async findById(messageId: number) {
+    const message = await exampleGetByMessageId(messageId)
 
-    this.messages.push(message)
+    console.log('message =', message)
 
-    this.logger.info('messages array now have length = %s', this.messages.length)
-  }
-
-  findById(messageId: number) {
-    return this.messages.find(({ message_id }) => messageId === message_id)
+    return message
   }
 }

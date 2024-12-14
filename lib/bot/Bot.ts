@@ -1,10 +1,9 @@
 import { Telegraf } from "telegraf"
 import { Logger } from "pino"
-import { FastCache } from "../fast-cache"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import { titorelli } from ".."
-import { totemGetByTgUserId, totemDeleteByTgUserId, totemCreate } from "../persistence"
+import { totemDeleteByTgUserId, totemCreate } from "../persistence"
 import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/blackMarks"
 import { banCandidateCreate } from "../persistence/banCandidates"
 import { exampleCreate, exampleUpdate } from "../persistence/examples"
@@ -12,7 +11,6 @@ import { exampleCreate, exampleUpdate } from "../persistence/examples"
 export class Bot {
   private logger: Logger
   private token: string
-  private fastCache: FastCache
   private recentMessages: RecentMessagesStore
   private spamCommandLockService: SpamLockService
   private bot: Telegraf
@@ -33,7 +31,6 @@ export class Bot {
   }) {
     this.logger = conf.logger
     this.token = conf.token
-    this.fastCache = new FastCache(conf.fastCache.maxStoredExamples, 0, this.logger)
     this.recentMessages = new RecentMessagesStore(conf.recentMessages.maxCount, this.logger)
     this.spamCommandLockService = new SpamLockService(conf.spamCommandLockService.lockDurationMs, this.logger)
     this.ready = this.initialize()
@@ -58,7 +55,7 @@ export class Bot {
           return
         }
 
-        const originalMessage = this.recentMessages.findById(replyToMessageId)
+        const originalMessage = await this.recentMessages.findById(replyToMessageId)
 
         if (!originalMessage) {
           this.logger.warn('Original message for /spam command cannot be found (too old or cache was dropped)')
@@ -74,8 +71,8 @@ export class Bot {
           return
         }
 
-        await totemDeleteByTgUserId(originalMessage.from.id)
-        await assignToTgUserId(originalMessage.from.id)
+        await totemDeleteByTgUserId(originalMessage.tgUserId)
+        await assignToTgUserId(originalMessage.tgUserId)
         await ctx.deleteMessage(replyToMessageId)
         await ctx.deleteMessage()
 
@@ -85,7 +82,9 @@ export class Bot {
           ctx.message.from.username || ctx.message.from.id
         )
 
-        // TODO: Train titorelli classifier
+        await titorelli.client.trainExactMatch({ text: originalMessage.text, label: 'spam' })
+        // await titorelli.client.train({ text: originalMessage.text, label: 'spam' })
+        // await titorelli.client.trainCas(originalMessage.tgUserId)
       } else {
         if (this.spamCommandLockService.locked(ctx.from.id)) {
           this.logger.warn("spam command received, but user with id = %s locked", ctx.from.id)
@@ -103,7 +102,7 @@ export class Bot {
           return
         }
 
-        const originalMessage = this.recentMessages.findById(replyToMessageId)
+        const originalMessage = await this.recentMessages.findById(replyToMessageId)
 
         if (!originalMessage) {
           this.logger.warn('Original message for /spam command cannot be found (too old or cache was dropped)')
@@ -121,8 +120,8 @@ export class Bot {
 
         this.spamCommandLockService.lock(ctx.message.from.id)
 
-        await totemDeleteByTgUserId(originalMessage.from.id)
-        await assignToTgUserId(originalMessage.from.id)
+        await totemDeleteByTgUserId(originalMessage.tgUserId)
+        await assignToTgUserId(originalMessage.tgUserId)
         await ctx.deleteMessage(replyToMessageId)
         await ctx.deleteMessage()
 
@@ -134,124 +133,91 @@ export class Bot {
       }
     })
 
-    bot.use(async (ctx) => {
-      this.logger.info("Received update typed as \"%s\":", ctx.updateType)
+    bot.on('message', async ctx => {
+      this.logger.info("Received message")
 
-      if ("message" in ctx.update) {
-        if ("text" in ctx.update.message || 'caption' in ctx.update.message) {
-          this.recentMessages.add(ctx.update.message)
+      const text: string = Reflect.get(ctx.message, 'text') ?? Reflect.get(ctx.message, 'caption') ?? ''
 
-          const text: string = Reflect.get(ctx.update.message, 'text') || Reflect.get(ctx.update.message, 'caption')
+      if (!text) {
+        this.logger.warn('Received empty text message: ', ctx.message)
 
-          if (!text) return
+        return
+      }
 
-          const { message_id, from } = ctx.update.message;
+      const { message_id, from } = ctx.message
+      const exampleId = await exampleCreate(message_id, from, text)
+      const fromId = from.id
 
-          const exampleId = await exampleCreate(message_id, from, text)
+      const { reason, value: label, confidence } = await titorelli.client.predict({ text, tgUserId: fromId })
 
-          const fromId = from.id;
+      await exampleUpdate(exampleId, {
+        classifier: 'titorelli',
+        reason,
+        label: label,
+        confidence
+      })
 
-          {
-            const blackMarks = await getAssignedTimesByTgUserId(fromId)
+      if (reason === 'totem') {
+        this.logger.info('Message "%s" passed because sender has totem', text)
 
-            if (blackMarks >= 3) {
-              await banCandidateCreate(ctx.update.message.from)
+        return
+      }
 
-              this.logger.info(
-                'User %s marked as ban-candidate',
-                ctx.message.from.username ?? ctx.message.from.id
-              )
+      if (reason === 'cas') {
+        await ctx.deleteMessage()
 
-              await exampleUpdate(exampleId, {
-                classifier: 'black-mark',
-                label: 'spam',
-                confidence: 1
-              })
+        this.logger.info('Message "%s" deleted because of CAS ban', text)
+
+        return
+      }
+
+      if (reason === 'duplicate') {
+        if (label === 'spam') {
+          await ctx.deleteMessage()
+
+          await assignToTgUserId(fromId)
+
+          if ((await getAssignedTimesByTgUserId(fromId)) >= 3) {
+            await banCandidateCreate(from)
+            await titorelli.client.trainCas(fromId)
+          }
+
+          this.logger.info('Message "%s" removed as duplicate', text)
+
+          return
+        } else {
+          this.logger.info('Message "%s" passed because it\'s duplicate but not spam', text)
+
+          return
+        }
+      }
+
+      if (reason === 'classifier') {
+        if (label === 'ham') {
+          this.logger.info('Message "%s" passed because it\'s classified as ham', text)
+
+          await totemCreate(fromId)
+          await titorelli.client.trainTotem(fromId)
+
+          return
+        } else
+          if (label === 'spam') {
+            if (confidence > 0.3) {
+              this.logger.info('Message "%s" removed because it\'s classified as ham with confidence %s', text, confidence)
 
               await ctx.deleteMessage()
 
-              this.logger.info('Message "%s" removed because author has %s black marks', text, blackMarks)
-
               return
-            }
-          }
-
-          const totem = await totemGetByTgUserId(fromId);
-
-          if (totem) {
-            this.logger.info(
-              'User with id = %s has totem, skipping. text = "%s"',
-              fromId,
-              text,
-            );
-
-            await exampleUpdate(exampleId, {
-              classifier: 'totem',
-              label: 'ham',
-              confidence: 1
-            })
-          } else {
-            {
-              const label = this.fastCache.get({ text })
-
-              if (label) {
-                this.logger.info('Message "%s" fast-classified as "%s"', text, label)
-
-                await exampleUpdate(exampleId, {
-                  classifier: 'fast-classifier',
-                  confidence: 1,
-                  label
-                })
-
-                if (label === 'spam') {
-                  await assignToTgUserId(fromId)
-                  await ctx.deleteMessage(message_id)
-                } else if (label === 'ham') {
-                  // DO NOTHING
-                }
+            } else {
+              if (label === 'spam' && confidence < 0.3) {
+                this.logger.info('Message "%s" passed because it\'s confidence = %s < 0.3, but it\'s marked as spam', text, confidence)
 
                 return
               }
             }
-
-            {
-              const { value: category, confidence } = await titorelli.client.predict({
-                text,
-                tgUserId: fromId
-              });
-
-              this.fastCache.add({ text, label: category })
-
-              this.logger.info(
-                'Message "%s" classifed as "%s" with confidence = %s',
-                text,
-                category,
-                confidence,
-              );
-
-              await exampleUpdate(exampleId, {
-                classifier: 'titorelli',
-                confidence,
-                label: category
-              })
-
-              if (category === "spam" && confidence > 0.3) {
-                await assignToTgUserId(fromId)
-                await ctx.deleteMessage(message_id);
-
-                return;
-              } else if (category === "ham") {
-                await totemCreate(fromId);
-
-                return;
-              }
-            }
           }
-
-          return;
-        }
       }
-    });
+    })
   }
 
   async launch() {

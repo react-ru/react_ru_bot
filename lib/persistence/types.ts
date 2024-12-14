@@ -35,7 +35,18 @@ export type Example = {
   isPremium: boolean | null
   link: string | null
   text: string
-  classifier: 'fast-classifier' | 'titorelli' | 'black-mark' | 'totem' | null
+  classifier:
+  | 'fast-classifier'
+  | 'titorelli'
+  | 'black-mark'
+  | 'totem'
+  | null
+  reason:
+  | 'classifier'
+  | 'duplicate'
+  | 'totem'
+  | 'cas'
+  | null
   label: 'spam' | 'ham' | null
   confidence: number | null
   createdAt: number

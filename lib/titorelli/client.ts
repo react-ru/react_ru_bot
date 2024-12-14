@@ -5,5 +5,5 @@ export const client = createClient({
   clientId: process.env.TITORELLI_CLIENT_ID,
   clientSecret: process.env.TITORELLI_OAUTH_CLIENT_SECRET,
   modelId: process.env.TITORELLI_CLIENT_MODEL_ID,
-  scope: 'predict'
+  scope: ['predict', 'exact_match/train', 'totems/train'] as any
 })
