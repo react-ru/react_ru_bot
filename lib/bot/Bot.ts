@@ -157,6 +157,8 @@ export class Bot {
         confidence
       })
 
+      await titorelli.client.trainExactMatch({ text, label })
+
       if (reason === 'totem') {
         this.logger.info('Message "%s" passed because sender has totem', text)
 
