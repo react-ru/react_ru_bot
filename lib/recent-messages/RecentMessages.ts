@@ -13,6 +13,9 @@ export class RecentMessagesStore {
   async findById(messageId: number) {
     const message = await exampleGetByMessageId(messageId)
 
+    if (message.createdAt == null)
+      return null
+
     const now = new Date()
     const createdAtDate = new Date(message.createdAt)
     const diffM = differenceInMinutes(now, createdAtDate)
