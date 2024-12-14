@@ -203,7 +203,7 @@ export class Bot {
         } else
           if (label === 'spam') {
             if (confidence > 0.3) {
-              this.logger.info('Message "%s" removed because it\'s classified as ham with confidence %s', text, confidence)
+              this.logger.info('Message "%s" removed because it\'s classified as spam with confidence %s', text, confidence)
 
               await ctx.deleteMessage()
 
