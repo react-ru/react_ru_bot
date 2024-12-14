@@ -17,7 +17,7 @@
   "keywords": [],
   "author": "YChebotaev",
   "dependencies": {
-    "@titorelli/client": "^2.1.1",
+    "@titorelli/client": "^2.1.2",
     "cross-fetch": "^4.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.0.3",
