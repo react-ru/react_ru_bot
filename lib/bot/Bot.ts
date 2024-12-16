@@ -82,9 +82,9 @@ export class Bot {
           ctx.message.from.username || ctx.message.from.id
         )
 
+        await titorelli.client.train({ text: originalMessage.text, label: 'spam' })
         await titorelli.client.trainExactMatch({ text: originalMessage.text, label: 'spam' })
-        // await titorelli.client.train({ text: originalMessage.text, label: 'spam' })
-        // await titorelli.client.trainCas(originalMessage.tgUserId)
+        await titorelli.client.trainCas(originalMessage.tgUserId)
       } else {
         if (this.spamCommandLockService.locked(ctx.from.id)) {
           this.logger.warn("spam command received, but user with id = %s locked", ctx.from.id)
