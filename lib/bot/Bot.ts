@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf"
+import { deunionize, Telegraf } from "telegraf"
 import { Logger } from "pino"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
@@ -134,35 +134,71 @@ export class Bot {
       }
     })
 
-    bot.on('chat_member', async ctx => {
-      this.logger.info('on chat_member:')
+    bot.on('new_chat_members', async ctx => {
+      this.logger.info('on new_chat_member:')
       this.logger.info(ctx)
 
+      const newChatMembers = deunionize(ctx).update.message.new_chat_members
       const admins = await ctx.getChatAdministrators()
 
-      {
-        const isAdmin = admins.some(admin => admin.user.id === ctx.from.id)
+      for (const user of newChatMembers) {
+        {
+          const isAdmin = admins.some(admin => admin.user.id === user.id)
 
-        if (isAdmin)
-          return
+          if (isAdmin)
+            continue
+        }
+
+        {
+          const hasTotem = totemGetByTgUserId(user.id)
+
+          if (hasTotem)
+            continue
+        }
+
+        const { banned } = await titorelli.client.cas.predictCas({ tgUserId: user.id })
+
+        if (banned) {
+          await ctx.banChatMember(user.id)
+          await casBannedCreate(user)
+        }
       }
-
-      {
-        const hasTotem = totemGetByTgUserId(ctx.from.id)
-
-        if (hasTotem)
-          return
-      }
-
-      const { banned } = await titorelli.client.cas.predictCas({ tgUserId: ctx.from.id })
-
-      if (banned) {
-        await ctx.banChatMember(ctx.from.id)
-        await casBannedCreate(ctx.from)
-      }
-
-      await ctx.deleteMessage()
     })
+
+    bot.on('left_chat_member', async ctx => {
+      this.logger.info('on left_chat_member:')
+      this.logger.info(ctx)
+    })
+
+    // bot.on('chat_member', async ctx => {
+    //   this.logger.info('on chat_member:')
+    //   this.logger.info(ctx)
+
+    //   const admins = await ctx.getChatAdministrators()
+
+    //   {
+    //     const isAdmin = admins.some(admin => admin.user.id === ctx.from.id)
+
+    //     if (isAdmin)
+    //       return
+    //   }
+
+    //   {
+    //     const hasTotem = totemGetByTgUserId(ctx.from.id)
+
+    //     if (hasTotem)
+    //       return
+    //   }
+
+    //   const { banned } = await titorelli.client.cas.predictCas({ tgUserId: ctx.from.id })
+
+    //   if (banned) {
+    //     await ctx.banChatMember(ctx.from.id)
+    //     await casBannedCreate(ctx.from)
+    //   }
+
+    //   await ctx.deleteMessage()
+    // })
 
     bot.on('message', async ctx => {
       this.logger.info("Received message")
@@ -262,6 +298,8 @@ export class Bot {
     return this.bot.launch({
       allowedUpdates: [
         'chat_member',
+        'new_chat_members' as any,
+        'left_chat_member',
         'message'
       ]
     });
