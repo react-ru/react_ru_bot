@@ -24,6 +24,18 @@ export type BanCandidate = {
   createdAt: number
 }
 
+export type CasBanned = {
+  id: number
+  tgUserId: number
+  username: string | null
+  firstName: string | null
+  lastName: string | null
+  languageCode: string | null
+  isPremium: boolean | null
+  link: string | null
+  createdAt: number
+}
+
 export type Example = {
   id: number
   tgUserId: number

@@ -1,4 +1,4 @@
-import { deunionize, Telegraf } from "telegraf"
+import { Telegraf } from "telegraf"
 import { Logger } from "pino"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
@@ -7,6 +7,7 @@ import { totemDeleteByTgUserId, totemCreate } from "../persistence"
 import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/blackMarks"
 import { banCandidateCreate } from "../persistence/banCandidates"
 import { exampleCreate, exampleUpdate } from "../persistence/examples"
+import { casBannedCreate } from "../persistence/casBanned"
 
 export class Bot {
   private logger: Logger
@@ -141,6 +142,7 @@ export class Bot {
 
       if (banned) {
         await ctx.banChatMember(ctx.from.id)
+        await casBannedCreate(ctx.from)
       }
 
       await ctx.deleteMessage()
