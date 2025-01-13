@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf"
+import { deunionize, Telegraf } from "telegraf"
 import { Logger } from "pino"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
@@ -133,6 +133,19 @@ export class Bot {
       }
     })
 
+    bot.on('chat_member', async ctx => {
+      this.logger.info('on chat_member:')
+      this.logger.info(ctx)
+
+      const { banned } = await titorelli.client.cas.predictCas({ tgUserId: ctx.from.id })
+
+      if (banned) {
+        await ctx.banChatMember(ctx.from.id)
+      }
+
+      await ctx.deleteMessage()
+    })
+
     bot.on('message', async ctx => {
       this.logger.info("Received message")
 
@@ -228,6 +241,11 @@ export class Bot {
     process.once("SIGINT", () => this.bot.stop("SIGINT"));
     process.once("SIGTERM", () => this.bot.stop("SIGTERM"));
 
-    return this.bot.launch();
+    return this.bot.launch({
+      allowedUpdates: [
+        'chat_member',
+        'message'
+      ]
+    });
   }
 }
