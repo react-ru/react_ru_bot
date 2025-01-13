@@ -3,7 +3,7 @@ import { Logger } from "pino"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import { titorelli } from ".."
-import { totemDeleteByTgUserId, totemCreate } from "../persistence"
+import { totemDeleteByTgUserId, totemCreate, totemGetByTgUserId } from "../persistence"
 import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/blackMarks"
 import { banCandidateCreate } from "../persistence/banCandidates"
 import { exampleCreate, exampleUpdate } from "../persistence/examples"
@@ -137,6 +137,22 @@ export class Bot {
     bot.on('chat_member', async ctx => {
       this.logger.info('on chat_member:')
       this.logger.info(ctx)
+
+      const admins = await ctx.getChatAdministrators()
+
+      {
+        const isAdmin = admins.some(admin => admin.user.id === ctx.from.id)
+
+        if (isAdmin)
+          return
+      }
+
+      {
+        const hasTotem = totemGetByTgUserId(ctx.from.id)
+
+        if (hasTotem)
+          return
+      }
 
       const { banned } = await titorelli.client.cas.predictCas({ tgUserId: ctx.from.id })
 
