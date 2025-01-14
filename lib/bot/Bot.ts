@@ -85,8 +85,8 @@ export class Bot {
         )
 
         await titorelli.client.train({ text: originalMessage.text, label: 'spam' })
-        await titorelli.client.trainExactMatch({ text: originalMessage.text, label: 'spam' })
-        await titorelli.client.trainCas(originalMessage.tgUserId)
+        await titorelli.client.duplicate.train({ text: originalMessage.text, label: 'spam' })
+        await titorelli.client.cas.train({ tgUserId: originalMessage.tgUserId })
       } else {
         if (this.spamCommandLockService.locked(ctx.from.id)) {
           this.logger.warn("spam command received, but user with id = %s locked", ctx.from.id)
@@ -137,7 +137,7 @@ export class Bot {
 
     bot.on('new_chat_members', async ctx => {
       this.logger.info({
-        message: 'Join chat members', 
+        message: 'Join chat members',
         newChatMembers: deunionize(ctx).update.message.new_chat_members
       })
 
@@ -178,7 +178,7 @@ export class Bot {
 
     bot.on('left_chat_member', async ctx => {
       this.logger.info({
-        message: 'Left chat members', 
+        message: 'Left chat members',
         leftChatMembers: deunionize(ctx).update.message.left_chat_member
       })
     })
@@ -237,7 +237,7 @@ export class Bot {
         confidence
       })
 
-      await titorelli.client.trainExactMatch({ text, label })
+      await titorelli.client.duplicate.train({ text, label })
 
       if (reason === 'totem') {
         this.logger.info('Message "%s" passed because sender has totem', text)
@@ -261,7 +261,7 @@ export class Bot {
 
           if ((await getAssignedTimesByTgUserId(fromId)) >= 3) {
             await banCandidateCreate(from)
-            await titorelli.client.trainCas(fromId)
+            await titorelli.client.cas.train({ tgUserId: fromId })
           }
 
           this.logger.info('Message "%s" removed as duplicate', text)
@@ -279,24 +279,12 @@ export class Bot {
           this.logger.info('Message "%s" passed because it\'s classified as ham', text)
 
           await totemCreate(fromId)
-          await titorelli.client.trainTotem(fromId)
+          await titorelli.client.totems.train({ tgUserId: fromId })
 
           return
         } else
           if (label === 'spam') {
-            if (confidence > 0.3) {
-              this.logger.info('Message "%s" removed because it\'s classified as spam with confidence %s', text, confidence)
-
-              await ctx.deleteMessage()
-
-              return
-            } else {
-              if (label === 'spam' && confidence < 0.3) {
-                this.logger.info('Message "%s" passed because it\'s confidence = %s < 0.3, but it\'s marked as spam', text, confidence)
-
-                return
-              }
-            }
+            this.logger.info('Message "%s" removed because it\'s classified as spam with score = %s', text, confidence)
           }
       }
     })
