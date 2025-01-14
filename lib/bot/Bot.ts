@@ -8,6 +8,7 @@ import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/bla
 import { banCandidateCreate } from "../persistence/banCandidates"
 import { exampleCreate, exampleUpdate } from "../persistence/examples"
 import { casBannedCreate } from "../persistence/casBanned"
+import { printUserName } from "../printUserName"
 
 export class Bot {
   private logger: Logger
@@ -135,8 +136,10 @@ export class Bot {
     })
 
     bot.on('new_chat_members', async ctx => {
-      this.logger.info('on new_chat_member:')
-      this.logger.info(ctx)
+      this.logger.info({
+        message: 'Join chat members', 
+        newChatMembers: deunionize(ctx).update.message.new_chat_members
+      })
 
       const newChatMembers = deunionize(ctx).update.message.new_chat_members
       const admins = await ctx.getChatAdministrators()
@@ -145,20 +148,28 @@ export class Bot {
         {
           const isAdmin = admins.some(admin => admin.user.id === user.id)
 
-          if (isAdmin)
+          if (isAdmin) {
+            this.logger.info('User "%s" passed, because he\'s admin', printUserName(user))
+
             continue
+          }
         }
 
         {
-          const hasTotem = totemGetByTgUserId(user.id)
+          const hasTotem = await totemGetByTgUserId(user.id)
 
-          if (hasTotem)
+          if (hasTotem) {
+            this.logger.info('User "%s" passed, because he has totem', printUserName(user))
+
             continue
+          }
         }
 
         const { banned } = await titorelli.client.cas.predictCas({ tgUserId: user.id })
 
         if (banned) {
+          this.logger.info('User "%s" banned because he\'s known spammer', printUserName(user))
+
           await ctx.banChatMember(user.id)
           await casBannedCreate(user)
         }
@@ -166,8 +177,10 @@ export class Bot {
     })
 
     bot.on('left_chat_member', async ctx => {
-      this.logger.info('on left_chat_member:')
-      this.logger.info(ctx)
+      this.logger.info({
+        message: 'Left chat members', 
+        leftChatMembers: deunionize(ctx).update.message.left_chat_member
+      })
     })
 
     // bot.on('chat_member', async ctx => {
