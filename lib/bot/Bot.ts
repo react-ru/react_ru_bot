@@ -167,6 +167,8 @@ export class Bot {
 
         const { banned } = await titorelli.client.cas.predictCas({ tgUserId: user.id })
 
+        this.logger.info('CAS predicted for user: %s = %s', printUserName(user), banned)
+
         if (banned) {
           this.logger.info('User "%s" banned because he\'s known spammer', printUserName(user))
 
