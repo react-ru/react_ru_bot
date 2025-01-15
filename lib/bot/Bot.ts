@@ -266,6 +266,8 @@ export class Bot {
 
           this.logger.info('Message "%s" removed as duplicate', text)
 
+          await ctx.deleteMessage()
+
           return
         } else {
           this.logger.info('Message "%s" passed because it\'s duplicate but not spam', text)
@@ -285,6 +287,10 @@ export class Bot {
         } else
           if (label === 'spam') {
             this.logger.info('Message "%s" removed because it\'s classified as spam with score = %s', text, confidence)
+
+            await ctx.deleteMessage()
+
+            return
           }
       }
     })
