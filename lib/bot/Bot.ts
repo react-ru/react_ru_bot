@@ -185,36 +185,6 @@ export class Bot {
       })
     })
 
-    // bot.on('chat_member', async ctx => {
-    //   this.logger.info('on chat_member:')
-    //   this.logger.info(ctx)
-
-    //   const admins = await ctx.getChatAdministrators()
-
-    //   {
-    //     const isAdmin = admins.some(admin => admin.user.id === ctx.from.id)
-
-    //     if (isAdmin)
-    //       return
-    //   }
-
-    //   {
-    //     const hasTotem = totemGetByTgUserId(ctx.from.id)
-
-    //     if (hasTotem)
-    //       return
-    //   }
-
-    //   const { banned } = await titorelli.client.cas.predictCas({ tgUserId: ctx.from.id })
-
-    //   if (banned) {
-    //     await ctx.banChatMember(ctx.from.id)
-    //     await casBannedCreate(ctx.from)
-    //   }
-
-    //   await ctx.deleteMessage()
-    // })
-
     bot.on('message', async ctx => {
       this.logger.info("Received message")
 
@@ -249,6 +219,8 @@ export class Bot {
 
       if (reason === 'cas') {
         await ctx.deleteMessage()
+        await ctx.banChatMember(fromId)
+        await casBannedCreate(from)
 
         this.logger.info('Message "%s" deleted because of CAS ban', text)
 
@@ -306,7 +278,6 @@ export class Bot {
 
     return this.bot.launch({
       allowedUpdates: [
-        'chat_member',
         'new_chat_members' as any,
         'left_chat_member',
         'message'
