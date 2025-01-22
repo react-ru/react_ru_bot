@@ -1,13 +1,19 @@
 import { deunionize, Telegraf } from "telegraf"
 import { Logger } from "pino"
+import { TitorelliClient, type TitorelliClientConfig } from "@titorelli/client"
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
-import { titorelli } from ".."
-import { totemDeleteByTgUserId, totemCreate, totemGetByTgUserId } from "../persistence"
-import { assignToTgUserId, getAssignedTimesByTgUserId } from "../persistence/blackMarks"
-import { banCandidateCreate } from "../persistence/banCandidates"
-import { exampleCreate, exampleUpdate } from "../persistence/examples"
-import { casBannedCreate } from "../persistence/casBanned"
+import {
+  totemDeleteByTgUserId,
+  totemCreate,
+  totemGetByTgUserId,
+  assignToTgUserId,
+  getAssignedTimesByTgUserId,
+  banCandidateCreate,
+  exampleCreate,
+  exampleUpdate,
+  casBannedCreate
+} from "../persistence"
 import { printUserName } from "../printUserName"
 
 export class Bot {
@@ -16,25 +22,19 @@ export class Bot {
   private recentMessages: RecentMessagesStore
   private spamCommandLockService: SpamLockService
   private bot: Telegraf
+  private titorelli: TitorelliClient
   private ready: Promise<void>
 
   constructor(conf: {
+    token: string,
+    titorelli: TitorelliClientConfig
     logger: Logger,
-    token: string
-    fastCache: {
-      maxStoredExamples: number
-    }
-    recentMessages: {
-      maxCount: number
-    }
-    spamCommandLockService: {
-      lockDurationMs: number
-    }
   }) {
     this.logger = conf.logger
     this.token = conf.token
-    this.recentMessages = new RecentMessagesStore(conf.recentMessages.maxCount, this.logger)
-    this.spamCommandLockService = new SpamLockService(conf.spamCommandLockService.lockDurationMs, this.logger)
+    this.recentMessages = new RecentMessagesStore(10, this.logger)
+    this.spamCommandLockService = new SpamLockService(3600000, this.logger)
+    this.titorelli = new TitorelliClient(conf.titorelli)
     this.ready = this.initialize()
   }
 
@@ -84,9 +84,9 @@ export class Bot {
           ctx.message.from.username || ctx.message.from.id
         )
 
-        await titorelli.client.train({ text: originalMessage.text, label: 'spam' })
-        await titorelli.client.duplicate.train({ text: originalMessage.text, label: 'spam' })
-        await titorelli.client.cas.train({ tgUserId: originalMessage.tgUserId })
+        await this.titorelli.train({ text: originalMessage.text, label: 'spam' })
+        await this.titorelli.duplicate.train({ text: originalMessage.text, label: 'spam' })
+        await this.titorelli.cas.train({ tgUserId: originalMessage.tgUserId })
       } else {
         if (this.spamCommandLockService.locked(ctx.from.id)) {
           this.logger.warn("spam command received, but user with id = %s locked", ctx.from.id)
@@ -165,7 +165,7 @@ export class Bot {
           }
         }
 
-        const result = await titorelli.client.cas.predictCas({ tgUserId: user.id })
+        const result = await this.titorelli.cas.predictCas({ tgUserId: user.id })
 
         this.logger.info('CAS predicted for user: %s = %s', printUserName(user), result)
 
@@ -200,7 +200,7 @@ export class Bot {
       const exampleId = await exampleCreate(message_id, from, text)
       const fromId = from.id
 
-      const { reason, value: label, confidence } = await titorelli.client.predict({ text, tgUserId: fromId })
+      const { reason, value: label, confidence } = await this.titorelli.predict({ text /*, tgUserId: fromId testing new model */ })
 
       await exampleUpdate(exampleId, {
         classifier: 'titorelli',
@@ -209,7 +209,7 @@ export class Bot {
         confidence
       })
 
-      await titorelli.client.duplicate.train({ text, label })
+      await this.titorelli.duplicate.train({ text, label })
 
       if (reason === 'totem') {
         this.logger.info('Message "%s" passed because sender has totem', text)
@@ -235,7 +235,7 @@ export class Bot {
 
           if ((await getAssignedTimesByTgUserId(fromId)) >= 3) {
             await banCandidateCreate(from)
-            await titorelli.client.cas.train({ tgUserId: fromId })
+            await this.titorelli.cas.train({ tgUserId: fromId })
           }
 
           this.logger.info('Message "%s" removed as duplicate', text)
@@ -255,7 +255,7 @@ export class Bot {
           this.logger.info('Message "%s" passed because it\'s classified as ham', text)
 
           await totemCreate(fromId)
-          await titorelli.client.totems.train({ tgUserId: fromId })
+          await this.titorelli.totems.train({ tgUserId: fromId })
 
           return
         } else
