@@ -200,7 +200,7 @@ export class Bot {
       const exampleId = await exampleCreate(message_id, from, text)
       const fromId = from.id
 
-      const { reason, value: label, confidence } = await this.titorelli.predict({ text /*, tgUserId: fromId testing new model */ })
+      const { reason, value: label, confidence } = await this.titorelli.predict({ text, tgUserId: fromId })
 
       await exampleUpdate(exampleId, {
         classifier: 'titorelli',
