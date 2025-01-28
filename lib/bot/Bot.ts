@@ -1,6 +1,7 @@
 import { deunionize, Telegraf } from "telegraf"
 import { Logger } from "pino"
 import { TitorelliClient, type TitorelliClientConfig } from "@titorelli/client"
+import { TelemetryClient, TelemetryClientConfig, createMiddleware } from '@titorelli/telemetry-client'
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import {
@@ -23,11 +24,13 @@ export class Bot {
   private spamCommandLockService: SpamLockService
   private bot: Telegraf
   private titorelli: TitorelliClient
+  private telemetry: TelemetryClient
   private ready: Promise<void>
 
   constructor(conf: {
     token: string,
     titorelli: TitorelliClientConfig
+    telemetry: TelemetryClientConfig
     logger: Logger,
   }) {
     this.logger = conf.logger
@@ -35,11 +38,14 @@ export class Bot {
     this.recentMessages = new RecentMessagesStore(10, this.logger)
     this.spamCommandLockService = new SpamLockService(3600000, this.logger)
     this.titorelli = new TitorelliClient(conf.titorelli)
+    this.telemetry = new TelemetryClient(conf.telemetry)
     this.ready = this.initialize()
   }
 
   async initialize() {
     const bot = this.bot = new Telegraf(this.token)
+
+    bot.use(createMiddleware(this.telemetry))
 
     bot.command('spam', async (ctx) => {
       const admins = await ctx.getChatAdministrators()

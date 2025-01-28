@@ -18,6 +18,7 @@
   "author": "YChebotaev",
   "dependencies": {
     "@titorelli/client": "^2.3.1",
+    "@titorelli/telemetry-client": "^5.0.1",
     "cross-fetch": "^4.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.0.3",
