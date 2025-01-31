@@ -17,8 +17,9 @@
   "keywords": [],
   "author": "YChebotaev",
   "dependencies": {
+    "@titorelli/bot-core": "^1.1.1",
     "@titorelli/client": "^2.3.1",
-    "@titorelli/telemetry-client": "^5.0.2",
+    "@titorelli/telemetry-client": "^6.0.1",
     "cross-fetch": "^4.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.0.3",

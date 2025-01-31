@@ -1,7 +1,7 @@
 import { deunionize, Telegraf } from "telegraf"
 import { Logger } from "pino"
 import { TitorelliClient, type TitorelliClientConfig } from "@titorelli/client"
-import { TelemetryClient, TelemetryClientConfig, createMiddleware } from '@titorelli/telemetry-client'
+import { TelemetryClient, TelemetryClientConfig, telegrafMiddleware } from '@titorelli/telemetry-client'
 import { RecentMessagesStore } from "../recent-messages"
 import { SpamLockService } from "../spam-lock-service"
 import {
@@ -45,7 +45,7 @@ export class Bot {
   async initialize() {
     const bot = this.bot = new Telegraf(this.token)
 
-    bot.use(createMiddleware(this.telemetry))
+    bot.use(telegrafMiddleware(this.telemetry))
 
     bot.command('spam', async (ctx) => {
       const admins = await ctx.getChatAdministrators()
@@ -208,6 +208,8 @@ export class Bot {
 
       const { reason, value: label, confidence } = await this.titorelli.predict({ text, tgUserId: fromId })
 
+      await this.telemetry.trackPrediction(message_id, { value: label, reason, confidence })
+
       await exampleUpdate(exampleId, {
         classifier: 'titorelli',
         reason,
@@ -235,8 +237,6 @@ export class Bot {
 
       if (reason === 'duplicate') {
         if (label === 'spam') {
-          await ctx.deleteMessage()
-
           await assignToTgUserId(fromId)
 
           if ((await getAssignedTimesByTgUserId(fromId)) >= 3) {
