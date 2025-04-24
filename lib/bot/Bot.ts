@@ -208,8 +208,6 @@ export class Bot {
 
       const { reason, value: label, confidence } = await this.titorelli.predict({ text, tgUserId: fromId })
 
-      await this.telemetry.trackPrediction(ctx.chat.id, message_id, { value: label, reason, confidence })
-
       await exampleUpdate(exampleId, {
         classifier: 'titorelli',
         reason,
