@@ -12,7 +12,7 @@ const bot = new Bot({
     scope: ['predict', 'train', 'exact_match/train', 'totems/train', 'cas/predict', 'cas/train'] as any,
   },
   telemetry: {
-    serviceUrl: process.env.TITORELLI_HOST
+    serviceUrl: 'https://telemetry.api.next.titorelli.ru'
   }
 })
 
