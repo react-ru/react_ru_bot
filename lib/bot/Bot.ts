@@ -51,6 +51,10 @@ export class Bot {
 
     bot.use(telegrafMiddleware(this.telemetry));
 
+    bot.use((_ctx, next) => {
+      setTimeout(next, 2_000);
+    });
+
     bot.command("spam", async (ctx) => {
       const admins = await ctx.getChatAdministrators();
 
